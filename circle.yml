@@ -8,7 +8,6 @@ dependencies:
     - mkdir -p ~/.go_workspace/src/github.com/olark/
     - ln -s ~/$MYNAMEIS ~/.go_workspace/src/github.com/olark/$MYNAMEIS
     - go get github.com/tools/godep
-    - go get github.com/coreos/etcd
   override:
     - make dist
 
