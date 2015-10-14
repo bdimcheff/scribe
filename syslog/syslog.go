@@ -283,13 +283,13 @@ func (n *netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
 		//	1. Use time.Stamp instead of time.RFC3339.
 		//	2. Drop the hostname field from the Fprintf.
 		timestamp := time.Now().Format(time.Stamp)
-		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s%s",
+		_, err := fmt.Fprintf(n.conn, "<%d>1 %s localhost %s %d - - \xef\xbb\xbf%s%s",
 			p, timestamp,
 			tag, os.Getpid(), msg, nl)
 		return err
 	}
-	timestamp := time.Now().Format(time.RFC3339)
-	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s",
+	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999999Z07:00")
+	_, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s %d - - \xef\xbb\xbf%s%s",
 		p, timestamp, hostname,
 		tag, os.Getpid(), msg, nl)
 	return err
