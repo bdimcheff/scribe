@@ -27,20 +27,34 @@ type olarkLogFormat struct {
 	message     string
 }
 
-// func getLogFunction(s string) (logFunction, err error) {
-//
-// }
+func getLogFunction(writer *syslog.Writer, s string) (logFunction func(string) error) {
+	switch s {
+	case "INFO":
+		return writer.Info
+	case "ERROR":
+		return writer.Err
+	case "WARNING":
+		return writer.Warning
+	}
+
+	return writer.Debug
+}
+
 //Mon Jan 2 15:04:05 -0700 MST 2006
 
 func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
-	parts := strings.SplitN(logLine, " ", 7)
+	parts := strings.SplitN(logLine, " ", 8)
 	dateString := parts[0]
 	timeString := parts[1]
+
+	// golang doesn't properly support ISO8601 dates, so we have to use a
+	// slightly different format, replacing comma with period
+	// https://github.com/golang/go/issues/6189
 	timeString = strings.Replace(timeString, ",", ".", 1)
 	datetimeString := strings.Join([]string{dateString, timeString}, " ")
 	levelString := parts[3]
 	serviceName := parts[5]
-	message := parts[6]
+	message := parts[7]
 
 	timestamp, err := time.Parse("2006-01-02 15:04:05.000", datetimeString)
 
@@ -94,7 +108,6 @@ func main() {
 
 			continue
 		}
-		log.Println(logData)
 		if !dryRun {
 			logger, err := connectToLogger()
 
@@ -102,7 +115,8 @@ func main() {
 				os.Exit(1)
 			}
 
-			logger.Info(line)
+			loggerFunction := getLogFunction(logger, logData.level)
+			loggerFunction(logData.message)
 		}
 	}
 	if err := scanner.Err(); err != nil {
