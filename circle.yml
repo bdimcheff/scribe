@@ -1,0 +1,22 @@
+machine:
+  environment:
+    MYNAMEIS: scribe
+
+dependencies:
+  pre:
+    - rm -rf ~/.go_workspace/src/github.com/olark/$MYNAMEIS
+    - mkdir -p ~/.go_workspace/src/github.com/olark/
+    - ln -s ~/$MYNAMEIS ~/.go_workspace/src/github.com/olark/$MYNAMEIS
+    - go get github.com/tools/godep
+  override:
+    - make dist
+
+test:
+  override:
+    - make test
+
+deployment:
+  output_bin:
+    branch: /.*/
+    commands:
+      - cp bin/scribe $CIRCLE_ARTIFACTS/scribe_$(sha256sum bin/scribe |awk '{print $1}')
