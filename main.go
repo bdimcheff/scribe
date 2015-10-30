@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
+
 	syslog "github.com/olark/scribe/syslog"
 
 	//"github.com/olark/scribe/version"
@@ -82,14 +84,28 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 }
 
 func connectToLogger() (logger *syslog.Writer, err error) {
-	logger, err = syslog.Dial("tcp", server, syslog.LOG_DEBUG, tag)
+	errorCallback := func(err error, backoffTime time.Duration) {
+		fmt.Fprintln(os.Stderr, "connect to remote syslog failed")
+	}
+
+	connect := func() error {
+		var connectError error
+		logger, connectError = syslog.Dial("tcp", server, syslog.LOG_DEBUG, tag)
+
+		return connectError
+	}
+
+	backoffConfig := backoff.NewExponentialBackOff()
+	// retry forever
+	backoffConfig.MaxElapsedTime = 0
+
+	backoff.RetryNotify(connect, backoffConfig, errorCallback)
 
 	if err != nil {
-		log.Println("Error connecting to syslog")
-		log.Println(err)
-
 		return nil, err
 	}
+
+	//successfully connected to a logger
 
 	return logger, nil
 }
