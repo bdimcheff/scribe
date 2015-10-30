@@ -94,12 +94,16 @@ func connectToLogger() (logger *syslog.Writer, err error) {
 	return logger, nil
 }
 
-func main() {
+func parseCommandLineOptions() {
 	flag.StringVarP(&server, "server", "s", "localhost", "syslog server to log to")
 	flag.BoolVarP(&reprintLogs, "print", "p", true, "reprint log lines to stdout for further capture")
 	flag.BoolVarP(&dryRun, "dry", "d", false, "don't actually log to syslog")
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
 	flag.Parse()
+}
+
+func main() {
+	parseCommandLineOptions()
 
 	scanner := bufio.NewScanner(os.Stdin)
 
