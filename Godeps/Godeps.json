@@ -3,6 +3,10 @@
 	"GoVersion": "go1.5.1",
 	"Deps": [
 		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Rev": "4dc77674aceaabba2c7e3da25d4c823edfb73f99"
+		},
+		{
 			"ImportPath": "github.com/spf13/pflag",
 			"Rev": "5a13a75b13d132dc7d07dd19fd260257cd9c0290"
 		}
