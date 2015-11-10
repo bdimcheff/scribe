@@ -128,37 +128,40 @@ func main() {
 	var logger *syslog.Writer
 	var err error
 
-	if !dryRun {
-		logger, err = connectToLogger()
-
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error connecting to logger.  Not exiting, but logs are being dropped.")
-			dryRun = true
-		}
-	}
-
 	logChannel := make(chan string, bufferLength)
 
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
 
+			if reprintLogs {
+				fmt.Println(line) // Println will add back the final '\n'
+			}
+
 			select {
 			case logChannel <- line:
 			default:
-				fmt.Fprintln(os.Stderr, "Channel full, unable to log")
+				fmt.Fprintln(os.Stderr, "Buffer full, dropping log line.")
 			}
 		}
 	}()
+
+	if !dryRun {
+		logger, err = connectToLogger()
+
+		if err != nil {
+			// this should really never happen because connectToLogger should
+			// retry forever
+			fmt.Fprintln(os.Stderr, "Error connecting to logger.  Not exiting, but logs are being dropped.")
+			dryRun = true
+		}
+	}
 
 	for {
 		line := <-logChannel
 
 		logData, err := parseOlarkLogFormat(line)
 
-		if reprintLogs {
-			fmt.Println(line) // Println will add back the final '\n'
-		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, line)
 			fmt.Fprintln(os.Stderr, "Unable to process previous line due to formatting error:")
@@ -166,7 +169,8 @@ func main() {
 
 			continue
 		}
-		if !dryRun {
+
+		if logger != nil && !dryRun {
 			loggerFunction := getLogFunction(logger, logData.level)
 			loggerFunction(logData.message)
 		}
