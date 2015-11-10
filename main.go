@@ -21,6 +21,7 @@ var server string
 var reprintLogs bool
 var dryRun bool
 var tag string
+var bufferLength int
 
 // we need to parse logs of the form 2015-10-14 15:58:24,543 - INFO - servicename - message
 
@@ -115,6 +116,7 @@ func parseCommandLineOptions() {
 	flag.BoolVarP(&reprintLogs, "print", "p", true, "reprint log lines to stdout for further capture")
 	flag.BoolVarP(&dryRun, "dry", "d", false, "don't actually log to syslog")
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
+	flag.IntVarP(&bufferLength, "buffer-length", "b", 100000, "number of log lines to buffer before dropping them")
 	flag.Parse()
 }
 
@@ -130,12 +132,28 @@ func main() {
 		logger, err = connectToLogger()
 
 		if err != nil {
-			os.Exit(1)
+			fmt.Fprintln(os.Stderr, "Error connecting to logger.  Not exiting, but logs are being dropped.")
+			dryRun = true
 		}
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	logChannel := make(chan string, bufferLength)
+
+	go func() {
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			select {
+			case logChannel <- line:
+			default:
+				fmt.Fprintln(os.Stderr, "Channel full, unable to log")
+			}
+		}
+	}()
+
+	for {
+		line := <-logChannel
+
 		logData, err := parseOlarkLogFormat(line)
 
 		if reprintLogs {
@@ -153,9 +171,4 @@ func main() {
 			loggerFunction(logData.message)
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error reading standard input:", err)
-	}
-
-	os.Exit(0)
 }
