@@ -130,6 +130,7 @@ func main() {
 
 	logChannel := make(chan string, bufferLength)
 
+	// spins up a goroutine to enqueue lines from stdin
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -140,12 +141,14 @@ func main() {
 
 			select {
 			case logChannel <- line:
+				// line successfully enqueued to channel, so we can do nothing
 			default:
 				fmt.Fprintln(os.Stderr, "Buffer full, dropping log line.")
 			}
 		}
 	}()
 
+	// while lines are being enqueued, try to connect to the logger
 	if !dryRun {
 		logger, err = connectToLogger()
 
