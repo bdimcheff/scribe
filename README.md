@@ -2,6 +2,8 @@
 
 Sticks stdout into syslog in a logcentral-compatible way
 
+![scribe](http://i.imgur.com/UxnBsTy.jpg)
+
 Owners
 ------
  1. brandon
