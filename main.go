@@ -106,8 +106,6 @@ func connectToLogger() (logger *syslog.Writer, err error) {
 		return nil, err
 	}
 
-	//successfully connected to a logger
-
 	return logger, nil
 }
 
@@ -130,13 +128,12 @@ func main() {
 
 	logChannel := make(chan string, bufferLength)
 
-	// spins up a goroutine to enqueue lines from stdin
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
 
 			if reprintLogs {
-				fmt.Println(line) // Println will add back the final '\n'
+				fmt.Println(line)
 			}
 
 			select {
@@ -148,7 +145,6 @@ func main() {
 		}
 	}()
 
-	// while lines are being enqueued, try to connect to the logger
 	if !dryRun {
 		logger, err = connectToLogger()
 
