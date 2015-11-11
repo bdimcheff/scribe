@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
+
 	syslog "github.com/olark/scribe/syslog"
 
 	//"github.com/olark/scribe/version"
@@ -19,6 +21,7 @@ var server string
 var reprintLogs bool
 var dryRun bool
 var tag string
+var bufferLength int
 
 // we need to parse logs of the form 2015-10-14 15:58:24,543 - INFO - servicename - message
 
@@ -82,45 +85,82 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 }
 
 func connectToLogger() (logger *syslog.Writer, err error) {
-	logger, err = syslog.Dial("tcp", server, syslog.LOG_DEBUG, tag)
+	errorCallback := func(err error, backoffTime time.Duration) {
+		fmt.Fprintln(os.Stderr, "connect to remote syslog failed")
+	}
+
+	connect := func() error {
+		var connectError error
+		logger, connectError = syslog.Dial("tcp", server, syslog.LOG_DEBUG, tag)
+
+		return connectError
+	}
+
+	backoffConfig := backoff.NewExponentialBackOff()
+	// retry forever
+	backoffConfig.MaxElapsedTime = 0
+
+	backoff.RetryNotify(connect, backoffConfig, errorCallback)
 
 	if err != nil {
-		log.Println("Error connecting to syslog")
-		log.Println(err)
-
 		return nil, err
 	}
 
 	return logger, nil
 }
 
-func main() {
+func parseCommandLineOptions() {
 	flag.StringVarP(&server, "server", "s", "localhost", "syslog server to log to")
 	flag.BoolVarP(&reprintLogs, "print", "p", true, "reprint log lines to stdout for further capture")
 	flag.BoolVarP(&dryRun, "dry", "d", false, "don't actually log to syslog")
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
+	flag.IntVarP(&bufferLength, "buffer-length", "b", 100000, "number of log lines to buffer before dropping them")
 	flag.Parse()
+}
+
+func main() {
+	parseCommandLineOptions()
 
 	scanner := bufio.NewScanner(os.Stdin)
 
 	var logger *syslog.Writer
 	var err error
 
+	logChannel := make(chan string, bufferLength)
+
+	go func() {
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			if reprintLogs {
+				fmt.Println(line)
+			}
+
+			select {
+			case logChannel <- line:
+				// line successfully enqueued to channel, so we can do nothing
+			default:
+				fmt.Fprintln(os.Stderr, "Buffer full, dropping log line.")
+			}
+		}
+	}()
+
 	if !dryRun {
 		logger, err = connectToLogger()
 
 		if err != nil {
-			os.Exit(1)
+			// this should really never happen because connectToLogger should
+			// retry forever
+			fmt.Fprintln(os.Stderr, "Error connecting to logger.  Not exiting, but logs are being dropped.")
+			dryRun = true
 		}
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	for {
+		line := <-logChannel
+
 		logData, err := parseOlarkLogFormat(line)
 
-		if reprintLogs {
-			fmt.Println(line) // Println will add back the final '\n'
-		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, line)
 			fmt.Fprintln(os.Stderr, "Unable to process previous line due to formatting error:")
@@ -128,14 +168,10 @@ func main() {
 
 			continue
 		}
-		if !dryRun {
+
+		if logger != nil && !dryRun {
 			loggerFunction := getLogFunction(logger, logData.level)
 			loggerFunction(logData.message)
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error reading standard input:", err)
-	}
-
-	os.Exit(0)
 }
