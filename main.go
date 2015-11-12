@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -69,8 +68,8 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 	timestamp, err := time.Parse("2006-01-02 15:04:05.000", datetimeString)
 
 	if err != nil {
-		fmt.Printf("ERROR: unable to parse timestamp from log line %s\n", logLine)
-		log.Println(err)
+		logError(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString))
+		logError(err)
 		return olarkLogFormat{}, err
 	}
 
@@ -86,7 +85,7 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 
 func connectToLogger() (logger *syslog.Writer, err error) {
 	errorCallback := func(err error, backoffTime time.Duration) {
-		fmt.Fprintln(os.Stderr, "connect to remote syslog failed")
+		logError("Connect to remote syslog failed, retrying")
 	}
 
 	connect := func() error {
@@ -106,7 +105,19 @@ func connectToLogger() (logger *syslog.Writer, err error) {
 		return nil, err
 	}
 
+	logMessage("Connected to logger")
+
 	return logger, nil
+}
+
+func logMessage(message interface{}) {
+	fmt.Printf("[scribe info] %s", message)
+	fmt.Println("")
+}
+
+func logError(message interface{}) {
+	fmt.Fprintf(os.Stderr, "[scribe error] %s", message)
+	fmt.Fprintln(os.Stderr, "")
 }
 
 func parseCommandLineOptions() {
@@ -140,7 +151,7 @@ func main() {
 			case logChannel <- line:
 				// line successfully enqueued to channel, so we can do nothing
 			default:
-				fmt.Fprintln(os.Stderr, "Buffer full, dropping log line.")
+				logError("Buffer full, dropping log line.")
 			}
 		}
 	}()
@@ -151,7 +162,7 @@ func main() {
 		if err != nil {
 			// this should really never happen because connectToLogger should
 			// retry forever
-			fmt.Fprintln(os.Stderr, "Error connecting to logger.  Not exiting, but logs are being dropped.")
+			logError("Error connecting to logger.  Not exiting, but logs are not being sent remotely.")
 			dryRun = true
 		}
 	}
@@ -162,9 +173,8 @@ func main() {
 		logData, err := parseOlarkLogFormat(line)
 
 		if err != nil {
-			fmt.Fprintln(os.Stderr, line)
-			fmt.Fprintln(os.Stderr, "Unable to process previous line due to formatting error:")
-			fmt.Fprintln(os.Stderr, err)
+			logError("Unable to process previous line due to formatting error:")
+			logError(err)
 
 			continue
 		}
