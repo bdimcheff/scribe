@@ -249,7 +249,7 @@ func TestDial(t *testing.T) {
 }
 
 func check(t *testing.T, in, out string) {
-	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+	tmpl := fmt.Sprintf("<%d>1 %%s %%s syslog_test %%d - - \xef\xbb\xbf%s\n", LOG_USER+LOG_INFO, in)
 	if hostname, err := os.Hostname(); err != nil {
 		t.Error("Error retrieving hostname")
 	} else {
@@ -268,10 +268,10 @@ func TestWrite(t *testing.T) {
 		msg string
 		exp string
 	}{
-		{LOG_USER | LOG_ERR, "syslog_test", "", "%s %s syslog_test[%d]: \n"},
-		{LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test[%d]: write test\n"},
+		{LOG_USER | LOG_ERR, "syslog_test", "", "%s %s syslog_test %d - - \xef\xbb\xbf\n"},
+		{LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test\n"},
 		// Write should not add \n if there already is one
-		{LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test[%d]: write test 2\n"},
+		{LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test 2\n"},
 	}
 
 	if hostname, err := os.Hostname(); err != nil {
@@ -292,7 +292,7 @@ func TestWrite(t *testing.T) {
 				t.Fatalf("WriteString() failed: %v", err)
 			}
 			rcvd := <-done
-			test.exp = fmt.Sprintf("<%d>", test.pri) + test.exp
+			test.exp = fmt.Sprintf("<%d>1", test.pri) + test.exp
 			var parsedHostname, timestamp string
 			var pid int
 			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
