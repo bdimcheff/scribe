@@ -303,7 +303,8 @@ func TestWrite(t *testing.T) {
 }
 
 func TestWriteDetailed(t *testing.T) {
-	now := time.Now()
+	timestring := "1983-10-09T12:34:56.123456Z"
+	logTime, _ := time.Parse("2006-01-02T15:04:05.999999Z07:00", timestring)
 
 	tests := []struct {
 		pri     Priority
@@ -312,10 +313,10 @@ func TestWriteDetailed(t *testing.T) {
 		msg     string
 		exp     string
 	}{
-		{LOG_USER | LOG_ERR, now, "syslog_test", "", "%s %s %s %d - - \xef\xbb\xbf\n"},
-		// {LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test\n"},
-		// // Write should not add \n if there already is one
-		// {LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test 2\n"},
+		{LOG_USER | LOG_ERR, logTime, "syslog_test", "", "%s %s %s %d - - \xef\xbb\xbf\n"},
+		{LOG_USER | LOG_ERR, logTime, "something.else", "write test", "%s %s %s %d - - \xef\xbb\xbfwrite test\n"},
+		// Write should not add \n if there already is one
+		{LOG_USER | LOG_ERR, logTime, "testtest", "write test 2\n", "%s %s %s %d - - \xef\xbb\xbfwrite test 2\n"},
 	}
 
 	if hostname, err := os.Hostname(); err != nil {
@@ -339,7 +340,7 @@ func TestWriteDetailed(t *testing.T) {
 			test.exp = fmt.Sprintf("<%d>1", test.pri) + test.exp
 			var parsedHostname, timestamp, tag string
 			var pid int
-			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &tag, &pid); n != 4 || err != nil || hostname != parsedHostname || tag != test.tag {
+			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &tag, &pid); n != 4 || err != nil || hostname != parsedHostname || tag != test.tag || timestamp != timestring {
 				t.Errorf("s.Info() = '%q', didn't match '%q' (%d %s)", rcvd, test.exp, n, err)
 			}
 		}
