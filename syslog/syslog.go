@@ -91,7 +91,7 @@ type Writer struct {
 // return a type that satisfies this interface and simply calls the C
 // library syslog function.
 type serverConn interface {
-	writeString(p Priority, hostname, tag, s, nl string) error
+	writeString(p Priority, logTime *time.Time, hostname, tag, s, nl string) error
 	close() error
 }
 
@@ -169,7 +169,13 @@ func (w *Writer) connect() (err error) {
 
 // Write sends a log message to the syslog daemon.
 func (w *Writer) Write(b []byte) (int, error) {
-	return w.writeAndRetry(w.priority, string(b))
+	return w.writeAndRetry(w.priority, nil, "", string(b))
+}
+
+// WriteDetailed sends a detailed log line to syslog, ignoring defaults
+func (w *Writer) WriteDetailed(p Priority, logTime *time.Time, tag string, msg string) (int, error) {
+	return w.writeAndRetry(p, logTime, tag, msg)
+
 }
 
 // Close closes a connection to the syslog daemon.
@@ -188,86 +194,90 @@ func (w *Writer) Close() error {
 // Emerg logs a message with severity LOG_EMERG, ignoring the severity
 // passed to New.
 func (w *Writer) Emerg(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_EMERG, m)
+	_, err = w.writeAndRetry(LOG_EMERG, nil, "", m)
 	return err
 }
 
 // Alert logs a message with severity LOG_ALERT, ignoring the severity
 // passed to New.
 func (w *Writer) Alert(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_ALERT, m)
+	_, err = w.writeAndRetry(LOG_ALERT, nil, "", m)
 	return err
 }
 
 // Crit logs a message with severity LOG_CRIT, ignoring the severity
 // passed to New.
 func (w *Writer) Crit(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_CRIT, m)
+	_, err = w.writeAndRetry(LOG_CRIT, nil, "", m)
 	return err
 }
 
 // Err logs a message with severity LOG_ERR, ignoring the severity
 // passed to New.
 func (w *Writer) Err(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_ERR, m)
+	_, err = w.writeAndRetry(LOG_ERR, nil, "", m)
 	return err
 }
 
 // Warning logs a message with severity LOG_WARNING, ignoring the
 // severity passed to New.
 func (w *Writer) Warning(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_WARNING, m)
+	_, err = w.writeAndRetry(LOG_WARNING, nil, "", m)
 	return err
 }
 
 // Notice logs a message with severity LOG_NOTICE, ignoring the
 // severity passed to New.
 func (w *Writer) Notice(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_NOTICE, m)
+	_, err = w.writeAndRetry(LOG_NOTICE, nil, "", m)
 	return err
 }
 
 // Info logs a message with severity LOG_INFO, ignoring the severity
 // passed to New.
 func (w *Writer) Info(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_INFO, m)
+	_, err = w.writeAndRetry(LOG_INFO, nil, "", m)
 	return err
 }
 
 // Debug logs a message with severity LOG_DEBUG, ignoring the severity
 // passed to New.
 func (w *Writer) Debug(m string) (err error) {
-	_, err = w.writeAndRetry(LOG_DEBUG, m)
+	_, err = w.writeAndRetry(LOG_DEBUG, nil, "", m)
 	return err
 }
 
-func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
+func (w *Writer) writeAndRetry(p Priority, logTime *time.Time, tag string, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if w.conn != nil {
-		if n, err := w.write(pr, s); err == nil {
+		if n, err := w.write(pr, logTime, tag, s); err == nil {
 			return n, err
 		}
 	}
 	if err := w.connect(); err != nil {
 		return 0, err
 	}
-	return w.write(pr, s)
+	return w.write(pr, logTime, tag, s)
 }
 
 // write generates and writes a syslog formatted string. The
-// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
-func (w *Writer) write(p Priority, msg string) (int, error) {
+// format is as follows: <PRI>1 TIMESTAMP HOSTNAME TAG PID - - \xef\xbb\xbfMSG
+func (w *Writer) write(p Priority, logTime *time.Time, tag string, msg string) (int, error) {
 	// ensure it ends in a \n
 	nl := ""
 	if !strings.HasSuffix(msg, "\n") {
 		nl = "\n"
 	}
 
-	err := w.conn.writeString(p, w.hostname, w.tag, msg, nl)
+	if tag == "" {
+		tag = w.tag
+	}
+
+	err := w.conn.writeString(p, logTime, w.hostname, w.tag, msg, nl)
 	if err != nil {
 		return 0, err
 	}
@@ -277,18 +287,23 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	return len(msg), nil
 }
 
-func (n *netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
+func (n *netConn) writeString(p Priority, logTime *time.Time, hostname, tag, msg, nl string) error {
+	if logTime == nil {
+		t := time.Now()
+		logTime = &t
+	}
+
 	if n.local {
 		// Compared to the network form below, the changes are:
 		//	1. Use time.Stamp instead of time.RFC3339.
 		//	2. Drop the hostname field from the Fprintf.
-		timestamp := time.Now().Format(time.Stamp)
+		timestamp := logTime.Format(time.Stamp)
 		_, err := fmt.Fprintf(n.conn, "<%d>1 %s localhost %s %d - - \xef\xbb\xbf%s%s",
 			p, timestamp,
 			tag, os.Getpid(), msg, nl)
 		return err
 	}
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999999Z07:00")
+	timestamp := logTime.UTC().Format("2006-01-02T15:04:05.999999Z07:00")
 	_, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s %d - - \xef\xbb\xbf%s%s",
 		p, timestamp, hostname,
 		tag, os.Getpid(), msg, nl)

@@ -302,6 +302,50 @@ func TestWrite(t *testing.T) {
 	}
 }
 
+func TestWriteDetailed(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		pri     Priority
+		logTime time.Time
+		tag     string
+		msg     string
+		exp     string
+	}{
+		{LOG_USER | LOG_ERR, now, "syslog_test", "", "%s %s %s %d - - \xef\xbb\xbf\n"},
+		// {LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test\n"},
+		// // Write should not add \n if there already is one
+		// {LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test %d - - \xef\xbb\xbfwrite test 2\n"},
+	}
+
+	if hostname, err := os.Hostname(); err != nil {
+		t.Fatalf("Error retrieving hostname")
+	} else {
+		for _, test := range tests {
+			done := make(chan string)
+			addr, sock, srvWG := startServer("udp", "", done)
+			defer srvWG.Wait()
+			defer sock.Close()
+			l, err := Dial("udp", addr, test.pri, test.tag)
+			if err != nil {
+				t.Fatalf("syslog.Dial() failed: %v", err)
+			}
+			defer l.Close()
+			_, err = l.WriteDetailed(test.pri, &test.logTime, test.tag, test.msg)
+			if err != nil {
+				t.Fatalf("WriteStringDetailed() failed: %v", err)
+			}
+			rcvd := <-done
+			test.exp = fmt.Sprintf("<%d>1", test.pri) + test.exp
+			var parsedHostname, timestamp, tag string
+			var pid int
+			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &tag, &pid); n != 4 || err != nil || hostname != parsedHostname || tag != test.tag {
+				t.Errorf("s.Info() = '%q', didn't match '%q' (%d %s)", rcvd, test.exp, n, err)
+			}
+		}
+	}
+}
+
 func TestConcurrentWrite(t *testing.T) {
 	addr, sock, srvWG := startServer("udp", "", make(chan string, 1))
 	defer srvWG.Wait()
