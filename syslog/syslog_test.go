@@ -327,7 +327,7 @@ func TestWriteDetailed(t *testing.T) {
 			addr, sock, srvWG := startServer("udp", "", done)
 			defer srvWG.Wait()
 			defer sock.Close()
-			l, err := Dial("udp", addr, test.pri, test.tag)
+			l, err := Dial("udp", addr, test.pri, "badtag")
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}

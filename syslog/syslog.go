@@ -277,7 +277,7 @@ func (w *Writer) write(p Priority, logTime *time.Time, tag string, msg string) (
 		tag = w.tag
 	}
 
-	err := w.conn.writeString(p, logTime, w.hostname, w.tag, msg, nl)
+	err := w.conn.writeString(p, logTime, w.hostname, tag, msg, nl)
 	if err != nil {
 		return 0, err
 	}
