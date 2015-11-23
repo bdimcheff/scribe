@@ -21,6 +21,7 @@ var reprintLogs bool
 var dryRun bool
 var tag string
 var bufferLength int
+var verbose bool
 
 // we need to parse logs of the form 2015-10-14 15:58:24,543 - INFO - servicename - message
 
@@ -68,8 +69,8 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 	timestamp, err := time.Parse("2006-01-02 15:04:05.000", datetimeString)
 
 	if err != nil {
-		logError(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString))
-		logError(err)
+		logDebug(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString))
+		logDebug(err)
 		return olarkLogFormat{}, err
 	}
 
@@ -120,12 +121,20 @@ func logError(message interface{}) {
 	fmt.Fprintln(os.Stderr, "")
 }
 
+func logDebug(message interface{}) {
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[scribe debug] %s", message)
+		fmt.Fprintln(os.Stderr, "")
+	}
+}
+
 func parseCommandLineOptions() {
 	flag.StringVarP(&server, "server", "s", "localhost", "syslog server to log to")
 	flag.BoolVarP(&reprintLogs, "print", "p", true, "reprint log lines to stdout for further capture")
 	flag.BoolVarP(&dryRun, "dry", "d", false, "don't actually log to syslog")
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
 	flag.IntVarP(&bufferLength, "buffer-length", "b", 100000, "number of log lines to buffer before dropping them")
+	flag.BoolVarP(&verbose, "verbose", "v", false, "log scribe messages/errors")
 	flag.Parse()
 }
 
@@ -173,8 +182,8 @@ func main() {
 		logData, err := parseOlarkLogFormat(line)
 
 		if err != nil {
-			logError("Unable to process previous line due to formatting error:")
-			logError(err)
+			logDebug("Unable to process previous line due to formatting error:")
+			logDebug(err)
 
 			continue
 		}
