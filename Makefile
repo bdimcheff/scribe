@@ -10,7 +10,7 @@ build: generate
 
 dist: generate
 	@echo -n "Building static bin for $(PROGRAM)... "
-	@CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags "-s -X github.com/olark/scribe/version.GitCommit $$(git rev-parse HEAD)" -o $(PREFIX)/$(PROGRAM)
+	@CGO_ENABLED=0 godep go build -a -installsuffix cgo -ldflags "-s -X github.com/olark/scribe/version.GitCommit=$$(git rev-parse HEAD)" -o $(PREFIX)/$(PROGRAM)
 	@echo "done"
 
 install: build

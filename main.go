@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	flag "github.com/spf13/pflag"
 
 	syslog "github.com/olark/scribe/syslog"
-
-	//"github.com/olark/scribe/version"
-	flag "github.com/spf13/pflag"
+	"github.com/olark/scribe/version"
 )
 
 var server string
@@ -22,6 +21,7 @@ var dryRun bool
 var tag string
 var bufferLength int
 var verbose bool
+var showVersion bool
 
 // we need to parse logs of the form 2015-10-14 15:58:24,543 - INFO - servicename - message
 
@@ -44,8 +44,6 @@ func getPriorityFromString(s string) syslog.Priority {
 
 	return syslog.LOG_DEBUG
 }
-
-//Mon Jan 2 15:04:05 -0700 MST 2006
 
 func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 	parts := strings.SplitN(logLine, " ", 8)
@@ -97,7 +95,6 @@ func connectToLogger() (logger *syslog.Writer, err error) {
 	}
 
 	backoffConfig := backoff.NewExponentialBackOff()
-	// retry forever
 	backoffConfig.MaxElapsedTime = 0
 
 	backoff.RetryNotify(connect, backoffConfig, errorCallback)
@@ -135,11 +132,17 @@ func parseCommandLineOptions() {
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
 	flag.IntVarP(&bufferLength, "buffer-length", "b", 100000, "number of log lines to buffer before dropping them")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "log scribe messages/errors")
+	flag.BoolVarP(&showVersion, "version", "", false, "display scribe version")
 	flag.Parse()
 }
 
 func main() {
 	parseCommandLineOptions()
+
+	if showVersion {
+		fmt.Println(version.GetFullVersion())
+		os.Exit(0)
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 
