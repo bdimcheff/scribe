@@ -32,17 +32,17 @@ type olarkLogFormat struct {
 	message     string
 }
 
-func getLogFunction(writer *syslog.Writer, s string) (logFunction func(string) error) {
+func getPriorityFromString(s string) syslog.Priority {
 	switch s {
 	case "INFO":
-		return writer.Info
+		return syslog.LOG_INFO
 	case "ERROR":
-		return writer.Err
+		return syslog.LOG_ERR
 	case "WARNING":
-		return writer.Warning
+		return syslog.LOG_WARNING
 	}
 
-	return writer.Debug
+	return syslog.LOG_DEBUG
 }
 
 //Mon Jan 2 15:04:05 -0700 MST 2006
@@ -189,8 +189,8 @@ func main() {
 		}
 
 		if logger != nil && !dryRun {
-			loggerFunction := getLogFunction(logger, logData.level)
-			loggerFunction(logData.message)
+			priority := getPriorityFromString(logData.level)
+			logger.WriteDetailed(priority, &logData.timestamp, logData.serviceName, logData.message)
 		}
 	}
 }
