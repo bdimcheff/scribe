@@ -303,7 +303,7 @@ func (n *netConn) writeString(p Priority, logTime *time.Time, hostname, tag, msg
 			tag, os.Getpid(), msg, nl)
 		return err
 	}
-	timestamp := logTime.UTC().Format("2006-01-02T15:04:05.999999Z07:00")
+	timestamp := logTime.UTC().Format("2006-01-02T15:04:05.000000Z07:00")
 	_, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s %d - - \xef\xbb\xbf%s%s",
 		p, timestamp, hostname,
 		tag, os.Getpid(), msg, nl)
