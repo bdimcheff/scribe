@@ -166,6 +166,7 @@ func main() {
 				logError("Buffer full, dropping log line.")
 			}
 		}
+		close(logChannel)
 	}()
 
 	if !dryRun {
@@ -180,7 +181,10 @@ func main() {
 	}
 
 	for {
-		line := <-logChannel
+		line, more := <-logChannel
+		if !more {
+			break
+		}
 
 		logData, err := parseOlarkLogFormat(line)
 
