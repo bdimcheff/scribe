@@ -16,7 +16,7 @@ import (
 )
 
 var server string
-var reprintLogs bool
+var quietMode bool
 var dryRun bool
 var tag string
 var bufferLength int
@@ -127,7 +127,7 @@ func logDebug(message interface{}) {
 
 func parseCommandLineOptions() {
 	flag.StringVarP(&server, "server", "s", "localhost", "syslog server to log to")
-	flag.BoolVarP(&reprintLogs, "print", "p", true, "reprint log lines to stdout for further capture")
+	flag.BoolVarP(&quietMode, "quiet", "q", false, "don't reprint log lines to stdout for further capture")
 	flag.BoolVarP(&dryRun, "dry", "d", false, "don't actually log to syslog")
 	flag.StringVarP(&tag, "tag", "t", "scribe", "override the service/component from logs with this tag")
 	flag.IntVarP(&bufferLength, "buffer-length", "b", 100000, "number of log lines to buffer before dropping them")
@@ -155,7 +155,7 @@ func main() {
 		for scanner.Scan() {
 			line := scanner.Text()
 
-			if reprintLogs {
+			if !quietMode {
 				fmt.Println(line)
 			}
 
