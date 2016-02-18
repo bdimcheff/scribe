@@ -72,6 +72,10 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 		return olarkLogFormat{}, err
 	}
 
+	if parts[2] != "-" || parts[4] != "-" || parts[6] != "-" {
+		return olarkLogFormat{}, errors.New("Line is not formatted according to spec")
+	}
+
 	logData = olarkLogFormat{
 		timestamp:   timestamp,
 		level:       levelString,
