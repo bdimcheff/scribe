@@ -72,6 +72,10 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 		return olarkLogFormat{}, err
 	}
 
+	if parts[2] != "-" || parts[4] != "-" || parts[6] != "-" {
+		return olarkLogFormat{}, errors.New("Line is not formatted according to spec")
+	}
+
 	logData = olarkLogFormat{
 		timestamp:   timestamp,
 		level:       levelString,
@@ -108,20 +112,26 @@ func connectToLogger() (logger *syslog.Writer, err error) {
 	return logger, nil
 }
 
-func logMessage(message interface{}) {
-	fmt.Printf("[scribe info] %s", message)
+func logRaw(level, message interface{}) {
+	now := time.Now()
+	timestamp := now.Format("2006-01-02 15:04:05.000")
+
+	fmt.Printf("%s - %s - scribe - %s", timestamp, level, message)
 	fmt.Println("")
+
+}
+
+func logMessage(message interface{}) {
+	logRaw("INFO", message)
 }
 
 func logError(message interface{}) {
-	fmt.Fprintf(os.Stderr, "[scribe error] %s", message)
-	fmt.Fprintln(os.Stderr, "")
+	logRaw("ERROR", message)
 }
 
 func logDebug(message interface{}) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "[scribe debug] %s", message)
-		fmt.Fprintln(os.Stderr, "")
+		logRaw("DEBUG", message)
 	}
 }
 
@@ -137,6 +147,8 @@ func parseCommandLineOptions() {
 }
 
 func main() {
+	logMessage("scribe started")
+
 	parseCommandLineOptions()
 
 	if showVersion {
