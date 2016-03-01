@@ -64,6 +64,10 @@ func parseOlarkLogFormat(logLine string) (logData *OlarkLogFormat, e error) {
 	serviceName := parts[5]
 	message := parts[7]
 
+	if strings.HasPrefix(serviceName, "dataservice.capture") {
+		return nil, nil
+	}
+
 	timestamp, err := time.Parse("2006-01-02 15:04:05.000", datetimeString)
 
 	if err != nil {
@@ -209,7 +213,7 @@ func main() {
 			continue
 		}
 
-		if logger != nil && !dryRun {
+		if logger != nil && logData != nil && !dryRun {
 			priority := getPriorityFromString(logData.level)
 			logger.WriteDetailed(priority, &logData.timestamp, logData.serviceName, logData.message)
 		}
