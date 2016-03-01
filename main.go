@@ -175,7 +175,9 @@ func main() {
 			case logChannel <- line:
 				// line successfully enqueued to channel, so we can do nothing
 			default:
-				logError("Buffer full, dropping log line.")
+				if !quietMode {
+					logError("Buffer full, dropping log line.")
+				}
 			}
 		}
 		close(logChannel)
