@@ -25,7 +25,7 @@ var showVersion bool
 
 // we need to parse logs of the form 2015-10-14 15:58:24,543 - INFO - servicename - message
 
-type olarkLogFormat struct {
+type OlarkLogFormat struct {
 	timestamp   time.Time
 	level       string
 	serviceName string
@@ -45,11 +45,11 @@ func getPriorityFromString(s string) syslog.Priority {
 	return syslog.LOG_DEBUG
 }
 
-func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
+func parseOlarkLogFormat(logLine string) (logData *OlarkLogFormat, e error) {
 	parts := strings.SplitN(logLine, " ", 8)
 
 	if len(parts) < 8 {
-		return olarkLogFormat{}, errors.New("not enough whitespace-separated strings on this line")
+		return nil, errors.New("not enough whitespace-separated strings on this line")
 	}
 
 	dateString := parts[0]
@@ -69,14 +69,14 @@ func parseOlarkLogFormat(logLine string) (logData olarkLogFormat, e error) {
 	if err != nil {
 		logDebug(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString))
 		logDebug(err)
-		return olarkLogFormat{}, err
+		return nil, err
 	}
 
 	if parts[2] != "-" || parts[4] != "-" || parts[6] != "-" {
-		return olarkLogFormat{}, errors.New("Line is not formatted according to spec")
+		return nil, errors.New("Line is not formatted according to spec")
 	}
 
-	logData = olarkLogFormat{
+	logData = &OlarkLogFormat{
 		timestamp:   timestamp,
 		level:       levelString,
 		serviceName: serviceName,
@@ -175,7 +175,9 @@ func main() {
 			case logChannel <- line:
 				// line successfully enqueued to channel, so we can do nothing
 			default:
-				logError("Buffer full, dropping log line.")
+				if !quietMode {
+					logError("Buffer full, dropping log line.")
+				}
 			}
 		}
 		close(logChannel)
@@ -207,7 +209,7 @@ func main() {
 			continue
 		}
 
-		if logger != nil && !dryRun {
+		if logger != nil && logData != nil && !dryRun {
 			priority := getPriorityFromString(logData.level)
 			logger.WriteDetailed(priority, &logData.timestamp, logData.serviceName, logData.message)
 		}
