@@ -31,7 +31,7 @@ func getPriorityFromString(s string) syslog.Priority {
 	return syslog.LOG_DEBUG
 }
 
-func parseOlarkLogFormat(logLine string) (logData *OlarkLogFormat, e error) {
+func (s *scribe) parseOlarkLogFormat(logLine string) (logData *OlarkLogFormat, e error) {
 	parts := strings.SplitN(logLine, " ", 8)
 
 	if len(parts) < 8 {
@@ -53,7 +53,7 @@ func parseOlarkLogFormat(logLine string) (logData *OlarkLogFormat, e error) {
 	timestamp, err := time.Parse("2006-01-02 15:04:05.000", datetimeString)
 
 	if err != nil {
-		logDebug(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString), err)
+		s.logDebug(fmt.Sprintf("Unable to parse timestamp from %s\n", datetimeString), err)
 		return nil, err
 	}
 
