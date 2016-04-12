@@ -17,7 +17,7 @@ type scribe struct {
 
 func (s *scribe) connectToLogger() (logger *syslog.Writer, err error) {
 	errorCallback := func(err error, backoffTime time.Duration) {
-		logError("Connect to remote syslog failed, retrying")
+		s.logError("Connect to remote syslog failed, retrying")
 	}
 
 	connect := func() error {
@@ -36,7 +36,7 @@ func (s *scribe) connectToLogger() (logger *syslog.Writer, err error) {
 		return nil, err
 	}
 
-	logMessage("Connected to logger")
+	s.logMessage("Connected to logger")
 
 	return logger, nil
 }
@@ -44,7 +44,7 @@ func (s *scribe) connectToLogger() (logger *syslog.Writer, err error) {
 func Run(opts *Options) {
 	s := &scribe{Options: opts}
 
-	logMessage("scribe started")
+	s.logMessage("scribe started")
 
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -65,9 +65,7 @@ func Run(opts *Options) {
 			case logChannel <- line:
 				// line successfully enqueued to channel, so we can do nothing
 			default:
-				if !s.QuietMode {
-					logError("Buffer full, dropping log line.")
-				}
+				s.logError("Buffer full, dropping log line.")
 			}
 		}
 		close(logChannel)
@@ -79,7 +77,7 @@ func Run(opts *Options) {
 		if err != nil {
 			// this should really never happen because connectToLogger should
 			// retry forever
-			logError("Error connecting to logger.  Not exiting, but logs are not being sent remotely.")
+			s.logError("Error connecting to logger.  Not exiting, but logs are not being sent remotely.")
 			s.DryRun = true
 		}
 	}
@@ -90,10 +88,10 @@ func Run(opts *Options) {
 			break
 		}
 
-		logData, err := parseOlarkLogFormat(line)
+		logData, err := s.parseOlarkLogFormat(line)
 
 		if err != nil && s.Verbose {
-			logDebug("Unable to process previous line due to formatting error:", err)
+			s.logDebug("Unable to process previous line due to formatting error:", err)
 			continue
 		}
 
