@@ -1,5 +1,9 @@
 # scribe
 
+This is a little tiny program that takes logs in the format that Olark uses and sticks them on the network in remote syslog format.  It's pretty specialized, so it's unlikely it will be usable out-of-the-box, but it's here as an example in case someone needs it.  There's a slightly modified version of go's syslog library to improve compatibility with RFC5424 that may be useful.
+
+This is also no longer maintained, as we are gradually switching to use standard logging formats and existing log aggregation software.
+
 Sticks stdout into syslog in a logcentral-compatible way
 
 ![scribe](http://i.imgur.com/UxnBsTy.jpg)
