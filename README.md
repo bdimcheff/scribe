@@ -16,7 +16,6 @@ Team: Engineering Operations
 Reporting Issues: [SRE in JIRA](https://olarktrack.atlassian.net/secure/CreateIssue!default.jspa?pid=10800)
 
  1. brandon
- 2. jeffz
 
 Usage
 -----
